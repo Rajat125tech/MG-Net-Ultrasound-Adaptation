@@ -267,6 +267,12 @@ if args.mode == 'eval':
     )
     
     with torch.no_grad():
+        from PIL import Image
+        val_preds_dir = os.path.join(args.output, "val_predictions")
+        val_visual_dir = os.path.join(args.output, "val_predictions_visual")
+        os.makedirs(val_preds_dir, exist_ok=True)
+        os.makedirs(val_visual_dir, exist_ok=True)
+
         for step, batch in enumerate(epoch_iterator_val):
             val_inputs, val_labels = (batch["image"].to(device), batch["label"].to(device))
             val_outputs = sliding_window_inference(val_inputs, (96, 96), 2, model)
@@ -294,6 +300,32 @@ if args.mode == 'eval':
             total = val_labels.numel()
             total_correct_pixels += correct
             total_pixels += total
+
+            # Save Predicted Masks
+            orig_filepath = val_files[step]["image"]
+            orig_filename = os.path.basename(orig_filepath)
+            orig_img = Image.open(orig_filepath)
+            orig_w, orig_h = orig_img.size
+
+            # Get argmax predicted class indices (96, 96)
+            pred_mask = torch.argmax(val_outputs, dim=1).squeeze(0).cpu().numpy().astype(np.uint8)
+
+            # Resize back to original dimensions using nearest neighbor interpolation
+            pred_mask_img = Image.fromarray(pred_mask)
+            pred_mask_resized = pred_mask_img.resize((orig_w, orig_h), resample=Image.NEAREST)
+
+            # Save grayscale class mask (indices 0, 1, 2, 3)
+            pred_mask_resized.save(os.path.join(val_preds_dir, orig_filename))
+
+            # Map classes to colors for visual overlay masks
+            pred_np = np.array(pred_mask_resized)
+            color_mask = np.zeros((orig_h, orig_w, 3), dtype=np.uint8)
+            color_mask[pred_np == 1] = [255, 0, 0]    # Brain (Red)
+            color_mask[pred_np == 2] = [255, 255, 0]  # CSP (Yellow)
+            color_mask[pred_np == 3] = [0, 0, 255]    # LV (Blue)
+
+            # Save colored mask
+            Image.fromarray(color_mask).save(os.path.join(val_visual_dir, orig_filename))
             
             current_overall_dice = dice_metric_overall.aggregate().item()
             epoch_iterator_val.set_description(
