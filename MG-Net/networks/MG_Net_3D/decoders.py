@@ -4,25 +4,21 @@ import torch.nn.functional as F
 
 from torch.nn import init
 
-import math
-from PIL import Image
-import cv2
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-import scipy.misc 
 
 from networks.MG_Net_3D.gcn_lib import Grapher3D as GCB3D
 from networks.MG_Net_3D.gcn_lib import Grapher as GCB
 
 class SPA(nn.Module):
-    def __init__(self, kernel_size=7):
+    def __init__(self, kernel_size=7, spatial_dims=3):
         super(SPA, self).__init__()
 
         assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
         padding = 3 if kernel_size == 7 else 1
 
-        self.conv1 = nn.Conv3d(2, 1, kernel_size, padding=padding, bias=False)
+        if spatial_dims == 3:
+            self.conv1 = nn.Conv3d(2, 1, kernel_size, padding=padding, bias=False)
+        else:
+            self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):

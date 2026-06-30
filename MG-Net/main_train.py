@@ -3,7 +3,7 @@
 from tensorboardX import SummaryWriter
 from monai.utils import set_determinism
 from monai.transforms import AsDiscrete
-from networks.MG_Net_3D.network_backbone import MG_Net_3D
+from networks.MG_Net_3D.network_backbone import MG_Net_2D
 from monai.networks.nets import UNETR, SwinUNETR,VNet
 from monai.metrics import DiceMetric
 from monai.losses import DiceCELoss
@@ -21,12 +21,12 @@ import argparse
 
 parser = argparse.ArgumentParser(description='3D UX-Net hyperparameters for medical image segmentation')
 ## Input data hyperparameters
-parser.add_argument('--root', type=str, default='/mnt/mydisk/Project/data/Task101_FeTA2022', help='Root folder of all your images and labels')
-parser.add_argument('--output', type=str, default='/mnt/mydisk/Project/Fetal_brain_deeplearning/MG-Net/output_new/feta2022/MG_Net_3D',  help='Output folder for both tensorboard and the best model')
-parser.add_argument('--dataset', type=str, default='feta',  help='Datasets: {feta, flare, amos}, Fyi: You can add your dataset here')
+parser.add_argument('--root', type=str, default='./dataset', help='Root folder of all your images and labels')
+parser.add_argument('--output', type=str, default='./output',  help='Output folder for both tensorboard and the best model')
+parser.add_argument('--dataset', type=str, default='ultrasound',  help='Datasets: {ultrasound, feta, flare, amos}')
 
 ## Input model & training hyperparameters
-parser.add_argument('--network', type=str, default='MG_Net_3D', help='Network models: {TransBTS,VNet, nnFormer, UNETR, SwinUNETR, 3DUXNET,TransGCN,MG_Net_3D}')
+parser.add_argument('--network', type=str, default='MG_Net_2D', help='Network models: {TransBTS,VNet, nnFormer, UNETR, SwinUNETR, 3DUXNET,TransGCN,MG_Net_3D,MG_Net_2D}')
 parser.add_argument('--mode', type=str, default='train', help='Training or testing mode')
 parser.add_argument('--pretrain', default=False, help='Have pretrained weights or not')
 parser.add_argument('--pretrained_weights', default='', help='Path of pretrained weights')
@@ -102,15 +102,15 @@ elif args.network == 'UNETR':
         res_block=True,
         dropout_rate=0.0,
     )
-elif args.network == 'MG_Net_3D':
-    model = MG_Net_3D(
+elif args.network == 'MG_Net_2D':
+    model = MG_Net_2D(
         in_chans=1,
         out_chans=out_classes,
         depths=[1, 1, 1, 1],
         feat_size=[48, 96, 192, 384],
         drop_path_rate=0,
         layer_scale_init_value=1e-6,
-        spatial_dims=3,
+        spatial_dims=2,
     )
 
 if len(args.gpu) > 1:
@@ -150,9 +150,9 @@ def validation(epoch_iterator_val):
     dice_vals = list()
     with torch.no_grad():
         for step, batch in enumerate(epoch_iterator_val):
-            val_inputs, val_labels = (batch["image"].cuda(), batch["label"].cuda())
+            val_inputs, val_labels = (batch["image"].to(device), batch["label"].to(device))
             # val_outputs = model(val_inputs)
-            val_outputs = sliding_window_inference(val_inputs, (96, 96, 96), 2, model)
+            val_outputs = sliding_window_inference(val_inputs, (96, 96), 2, model)
             # val_outputs = model_seg(val_inputs, val_feat[0], val_feat[1])
             val_labels_list = decollate_batch(val_labels)
             val_labels_convert = [
@@ -184,7 +184,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
     )
     for step, batch in enumerate(epoch_iterator):
         step += 1
-        x, y = (batch["image"].cuda(), batch["label"].cuda())
+        x, y = (batch["image"].to(device), batch["label"].to(device))
         # with torch.no_grad():
         #     g_feat, dense_feat = model_feat(x)
         logit_map = model(x)
@@ -225,7 +225,7 @@ def train(global_step, train_loader, dice_val_best, global_step_best):
                     )
                 )
                 # scheduler.step(dice_val)
-        writer.add_scalar('Training Segmentation Loss', loss.data, global_step)
+        writer.add_scalar('Training Segmentation Loss', loss.item(), global_step)
         global_step += 1
     return global_step, dice_val_best, global_step_best
 

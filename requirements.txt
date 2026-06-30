@@ -1,0 +1,14 @@
+torch>=1.12.0
+numpy>=1.20.0
+monai>=1.0.0
+natten>=0.14.0
+scikit-image
+scikit-learn
+tqdm
+tensorboardX
+timm>=0.6.0
+Pillow
+addict
+fvcore
+einops
+packaging
