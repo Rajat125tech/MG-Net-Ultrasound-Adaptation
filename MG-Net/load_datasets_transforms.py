@@ -98,7 +98,7 @@ def data_loader(args):
     elif dataset in ['ultrasound', 'prenatal_us']:
         out_classes = 4
 
-    if args.mode == 'train':
+    if args.mode in ['train', 'eval']:
         train_samples = {}
         valid_samples = {}
 
@@ -170,7 +170,7 @@ def data_loader(args):
 
 def data_transforms(args):
     dataset = args.dataset
-    if args.mode == 'train':
+    if args.mode in ['train', 'eval']:
         crop_samples = args.crop_sample
     else:
         crop_samples = None
@@ -416,7 +416,7 @@ def data_transforms(args):
         )
 
 
-    if args.mode == 'train':
+    if args.mode in ['train', 'eval']:
         if dataset in ['ultrasound', 'prenatal_us']:
             print('Performed Data Augmentations for all samples!')
         else:
